@@ -1,8 +1,10 @@
 // Package drop removes every file env-man has materialized outside .env-man/.
 //
 // Drop reads the manifest from state.yaml, deletes each tracked file, prunes
-// newly-empty directories, and resets the state file (empty layer stack and
-// empty manifest). The .env-man/ folder itself is left untouched.
+// newly-empty directories, and resets the applied layer stack and manifest. The
+// saved layer ordering (state.File.Order) is intentionally preserved so the TUI
+// remembers your preferred ordering with everything disabled. The .env-man/
+// folder itself is left untouched.
 package drop
 
 import (

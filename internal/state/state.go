@@ -20,6 +20,7 @@ const CurrentVersion = 1
 type File struct {
 	Version      int      `yaml:"version"`
 	Layers       []string `yaml:"layers,omitempty"`
+	Order        []string `yaml:"order,omitempty"`
 	Materialized []string `yaml:"materialized,omitempty"`
 
 	path string `yaml:"-"` // where this file was loaded from / saves to
@@ -66,6 +67,14 @@ func (f *File) SetLayers(layers []string) {
 	f.Layers = append([]string(nil), layers...)
 }
 
+// SetOrder replaces the full saved layer ordering (every known overlay layer,
+// including disabled ones, lowest priority first). The TUI persists this so
+// disabling a layer does not lose its position; it is display metadata only
+// and does not affect merge priority (which comes from Layers).
+func (f *File) SetOrder(order []string) {
+	f.Order = append([]string(nil), order...)
+}
+
 // SetMaterialized replaces the materialized-file manifest.
 func (f *File) SetMaterialized(paths []string) {
 	f.Materialized = append([]string(nil), paths...)
@@ -79,6 +88,74 @@ func (f *File) AddMaterialized(path string) {
 		}
 	}
 	f.Materialized = append(f.Materialized, path)
+}
+
+// MergeOrder combines a previously saved layer ordering (prev) with a new set of
+// applied layers (applied, in priority order) using a stable preserve-positions
+// strategy: non-applied layers keep their exact positions in prev, while the
+// applied layers are re-sequenced into their CLI priority order and placed into
+// the remaining slots. Brand-new applied layers (not present in prev) extend the
+// list.
+//
+// The applied layers always end up in their CLI relative order in the result, so
+// a subsequent no-op TUI apply reproduces the same priority. This is used by
+// `env-man apply` to overwrite the saved order while retaining a resemblance of
+// the TUI ordering for layers it does not touch. It is pure and symmetric with
+// respect to base (callers must exclude the reserved base layer).
+func MergeOrder(prev, applied []string) []string {
+	// Dedup applied, preserving priority order.
+	appliedSet := make(map[string]bool, len(applied))
+	A := make([]string, 0, len(applied))
+	for _, l := range applied {
+		if appliedSet[l] {
+			continue
+		}
+		appliedSet[l] = true
+		A = append(A, l)
+	}
+
+	// uniquePrev: prev deduped (first occurrence), preserving order.
+	prevSeen := make(map[string]bool, len(prev))
+	uniquePrev := make([]string, 0, len(prev))
+	for _, l := range prev {
+		if prevSeen[l] {
+			continue
+		}
+		prevSeen[l] = true
+		uniquePrev = append(uniquePrev, l)
+	}
+
+	// Brand-new applied layers (not in prev) extend the list.
+	newCount := 0
+	for _, l := range A {
+		if !prevSeen[l] {
+			newCount++
+		}
+	}
+	size := len(uniquePrev) + newCount
+
+	result := make([]string, size)
+	filled := make([]bool, size)
+
+	// Pin non-applied prev layers to their prev positions; applied layers leave
+	// their slots empty to be refilled in priority order below.
+	for i, l := range uniquePrev {
+		if !appliedSet[l] {
+			result[i] = l
+			filled[i] = true
+		}
+	}
+
+	// Sweep empty slots in increasing index and drop the applied layers in.
+	j := 0
+	for _, l := range A {
+		for filled[j] {
+			j++
+		}
+		result[j] = l
+		filled[j] = true
+	}
+	return result
 }
 
 // Save writes the state file atomically at its configured path.

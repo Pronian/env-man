@@ -24,7 +24,7 @@ func WriteFileAtomic(filename string, data []byte, perm os.FileMode) error {
 	tmpName := tmp.Name()
 
 	abort := func(reason error) error {
-		tmp.Close()
+		_ = tmp.Close()
 		_ = os.Remove(tmpName)
 		return reason
 	}

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"env-man/internal/config"
 	"env-man/internal/layer"
 	"env-man/internal/state"
@@ -41,19 +39,19 @@ func runList(cmd *cobra.Command, _ []string) error {
 		applied[l] = true
 	}
 
-	fmt.Fprintf(out, "Workspace: %s\n\n", p.Workdir)
+	writef(out, "Workspace: %s\n\n", p.Workdir)
 
-	fmt.Fprintln(out, "Current stack (low -> high priority):")
-	fmt.Fprintf(out, "  * %-16s (locked)\n", config.BaseName)
+	writeln(out, "Current stack (low -> high priority):")
+	writef(out, "  * %-16s (locked)\n", config.BaseName)
 	for _, l := range st.Layers {
-		fmt.Fprintf(out, "  * %s\n", l)
+		writef(out, "  * %s\n", l)
 	}
 	if len(st.Layers) == 0 {
-		fmt.Fprintln(out, "    (no overlay layers applied)")
+		writeln(out, "    (no overlay layers applied)")
 	}
 
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Available layers:")
+	writeln(out)
+	writeln(out, "Available layers:")
 	count := 0
 	for _, l := range all {
 		if l == config.BaseName {
@@ -64,10 +62,10 @@ func runList(cmd *cobra.Command, _ []string) error {
 		if applied[l] {
 			mark = "*"
 		}
-		fmt.Fprintf(out, "  %s %s\n", mark, l)
+		writef(out, "  %s %s\n", mark, l)
 	}
 	if count == 0 {
-		fmt.Fprintln(out, "  (no overlay layer folders)")
+		writeln(out, "  (no overlay layer folders)")
 	}
 	return nil
 }

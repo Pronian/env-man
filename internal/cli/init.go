@@ -60,11 +60,11 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	}
 
 	if len(created) == 0 {
-		fmt.Fprintf(out, "env-man is already initialized in %s\n", wd)
+		writef(out, "env-man is already initialized in %s\n", wd)
 	} else {
-		fmt.Fprintf(out, "Initialized env-man in %s\n", wd)
+		writef(out, "Initialized env-man in %s\n", wd)
 		for _, c := range created {
-			fmt.Fprintf(out, "  created  %s\n", c)
+			writef(out, "  created  %s\n", c)
 		}
 	}
 	return nil

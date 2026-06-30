@@ -121,8 +121,8 @@ func Compute(p config.Paths, layers []string) (*Report, error) {
 	return report, nil
 }
 
-func computeKeyDeltas(relpath string, strat merge.Strategy, old, new []byte) []KeyDelta {
-	switch strat {
+func computeKeyDeltas(relpath string, strategy merge.Strategy, old, new []byte) []KeyDelta {
+	switch strategy {
 	case merge.StrategyEnv:
 		return envKeyDeltas(old, new)
 	case merge.StrategyJSON:

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"env-man/internal/config"
 	"env-man/internal/drop"
 
@@ -33,15 +31,15 @@ func runDrop(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if len(res.Removed) == 0 && len(res.Missing) == 0 {
-		fmt.Fprintln(out, "Nothing to drop (no layers currently applied).")
+		writeln(out, "Nothing to drop (no layers currently applied).")
 		return nil
 	}
-	fmt.Fprintf(out, "Dropped %d file(s):\n", len(res.Removed))
+	writef(out, "Dropped %d file(s):\n", len(res.Removed))
 	for _, r := range res.Removed {
-		fmt.Fprintf(out, "  removed  %s\n", r)
+		writef(out, "  removed  %s\n", r)
 	}
 	for _, m := range res.Missing {
-		fmt.Fprintf(out, "  missing  %s (already gone)\n", m)
+		writef(out, "  missing  %s (already gone)\n", m)
 	}
 	return nil
 }

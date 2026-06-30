@@ -167,7 +167,6 @@ func collectRelpaths(dir string) ([]string, error) {
 func Apply(p config.Paths, st *state.File, plan *Plan) (*Result, error) {
 	res := &Result{}
 
-	newManifest := make([]string, 0, len(plan.Files))
 	newSet := map[string]bool{}
 	for _, fc := range plan.Files {
 		newSet[fc.RelPath] = true
@@ -186,7 +185,6 @@ func Apply(p config.Paths, st *state.File, plan *Plan) (*Result, error) {
 		default:
 			res.Updated = append(res.Updated, fc.RelPath)
 		}
-		newManifest = append(newManifest, fc.RelPath)
 	}
 
 	// Remove orphans: in the previous manifest but not produced by this plan.

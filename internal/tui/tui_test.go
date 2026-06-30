@@ -17,6 +17,15 @@ func mkState(layers []string) *state.File {
 	return f
 }
 
+// mkStateOrder builds a state file with both an applied layer stack and a full
+// saved ordering (including disabled layers).
+func mkStateOrder(layers, order []string) *state.File {
+	f := state.New("")
+	f.SetLayers(layers)
+	f.SetOrder(order)
+	return f
+}
+
 func TestNewModel_OrderAppliedFirstThenRestSorted(t *testing.T) {
 	p := config.Paths{}
 	st := mkState([]string{"dev", "local"})
@@ -61,10 +70,65 @@ func TestNewModel_EmptyWhenOnlyBase(t *testing.T) {
 	assert.Empty(t, m.Selected())
 }
 
+func TestNewModel_UsesSavedOrderKeepingDisabledPositions(t *testing.T) {
+	// Saved order interleaves disabled layers (staging, prod) with enabled
+	// ones (dev, local). The TUI must preserve those positions rather than
+	// dropping disabled layers into the alphabetical tail.
+	p := config.Paths{}
+	st := mkStateOrder([]string{"dev", "local"}, []string{"dev", "staging", "local", "prod"})
+	all := []string{"base", "dev", "local", "staging", "prod"}
+
+	m := NewModel(p, st, all)
+
+	assert.Equal(t, []string{"dev", "staging", "local", "prod"}, itemNames(m))
+	enabled := map[string]bool{}
+	for _, it := range m.items {
+		enabled[it.name] = it.enabled
+	}
+	assert.True(t, enabled["dev"])
+	assert.True(t, enabled["local"])
+	assert.False(t, enabled["staging"])
+	assert.False(t, enabled["prod"])
+}
+
+func TestNewModel_SavedOrderAppendsNewFoldersAlphabetically(t *testing.T) {
+	// "newlayer" exists on disk but not in the saved order: it is appended
+	// alphabetically after the saved entries.
+	p := config.Paths{}
+	st := mkStateOrder([]string{"dev"}, []string{"dev", "local"})
+	all := []string{"base", "dev", "local", "newlayer"}
+
+	m := NewModel(p, st, all)
+	assert.Equal(t, []string{"dev", "local", "newlayer"}, itemNames(m))
+}
+
+func TestNewModel_SavedOrderDropsGhostEntries(t *testing.T) {
+	// "ghost" is in the saved order but has no folder: hidden, like applied
+	// ghosts.
+	p := config.Paths{}
+	st := mkStateOrder([]string{"dev"}, []string{"dev", "ghost", "local"})
+	all := []string{"base", "dev", "local"}
+
+	m := NewModel(p, st, all)
+	assert.Equal(t, []string{"dev", "local"}, itemNames(m))
+}
+
 func TestSelected_ReturnsEnabledInOrder(t *testing.T) {
 	p := config.Paths{}
 	m := NewModel(p, mkState([]string{"dev"}), []string{"base", "dev", "local", "staging"})
 	assert.Equal(t, []string{"dev"}, m.Selected())
+}
+
+func TestOrder_ReturnsAllItemsIncludingDisabled(t *testing.T) {
+	p := config.Paths{}
+	m := NewModel(p, mkStateOrder([]string{"dev"}, []string{"dev", "staging", "local"}),
+		[]string{"base", "dev", "local", "staging"})
+	// Includes disabled layers (staging, local) in display order.
+	assert.Equal(t, []string{"dev", "staging", "local"}, m.Order())
+	// Toggling a layer off must not remove it from Order().
+	m = update(m, tea.KeyMsg{Type: tea.KeySpace}) // toggle dev off at cursor 0
+	assert.Equal(t, []string{"dev", "staging", "local"}, m.Order())
+	assert.Empty(t, m.Selected())
 }
 
 // update sends a key to the model and returns the resulting model.

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"env-man/internal/config"
+	"env-man/internal/state"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,61 @@ func TestApply_BaseOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, out, "Applied layers: base")
 	assert.True(t, exists(t, dir, ".env"))
+}
+
+// TestApply_PreservesOrderPositions seeds a full saved ordering (as the TUI
+// would write it) and checks that `apply` overwrites it while pinning the
+// non-applied layers to their previous positions and re-sequencing the applied
+// ones into CLI priority order.
+func TestApply_PreservesOrderPositions(t *testing.T) {
+	dir := freshDir(t)
+	_, err := runIn(t, dir, "init")
+	require.NoError(t, err)
+	writeFile(t, dir, config.DirName+"/"+config.BaseName+"/.env", "A=1\n")
+	for _, l := range []string{"dev", "staging", "local", "prod"} {
+		writeFile(t, dir, config.DirName+"/"+l+"/.env", l+"=1\n")
+	}
+
+	statePath := filepath.Join(dir, config.DirName, config.StateName)
+	st, err := state.Load(statePath)
+	require.NoError(t, err)
+	st.SetOrder([]string{"dev", "staging", "local", "prod"})
+	require.NoError(t, st.Save())
+
+	_, err = runIn(t, dir, "apply", "local", "dev")
+	require.NoError(t, err)
+
+	loaded, err := state.Load(statePath)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"local", "dev"}, loaded.Layers)
+	// staging/prod keep their slots; applied slots refilled local-before-dev.
+	assert.Equal(t, []string{"local", "staging", "dev", "prod"}, loaded.Order)
+}
+
+// TestApply_BaseOnlyKeepsSavedOrder verifies that resetting to base (no
+// overlays) leaves the saved ordering intact, so the TUI still remembers the
+// preferred ordering with everything disabled.
+func TestApply_BaseOnlyKeepsSavedOrder(t *testing.T) {
+	dir := freshDir(t)
+	_, err := runIn(t, dir, "init")
+	require.NoError(t, err)
+	writeFile(t, dir, config.DirName+"/"+config.BaseName+"/.env", "A=1\n")
+	writeFile(t, dir, config.DirName+"/dev/.env", "B=2\n")
+	writeFile(t, dir, config.DirName+"/local/.env", "C=3\n")
+
+	statePath := filepath.Join(dir, config.DirName, config.StateName)
+	st, err := state.Load(statePath)
+	require.NoError(t, err)
+	st.SetOrder([]string{"local", "dev"})
+	require.NoError(t, st.Save())
+
+	_, err = runIn(t, dir, "apply")
+	require.NoError(t, err)
+
+	loaded, err := state.Load(statePath)
+	require.NoError(t, err)
+	assert.Empty(t, loaded.Layers)
+	assert.Equal(t, []string{"local", "dev"}, loaded.Order)
 }
 
 func TestDrop_RemovesFiles(t *testing.T) {

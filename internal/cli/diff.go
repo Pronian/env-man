@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"env-man/internal/config"
@@ -40,31 +39,31 @@ func runDiff(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintf(out, "Proposed stack: %s\n\n", strings.Join(stackNames(report.Plan.Stack), " -> "))
+	writef(out, "Proposed stack: %s\n\n", strings.Join(stackNames(report.Plan.Stack), " -> "))
 	if report.Changed() == 0 {
-		fmt.Fprintln(out, "No changes.")
+		writeln(out, "No changes.")
 		return nil
 	}
-	fmt.Fprintf(out, "Changes (%d):\n", report.Changed())
+	writef(out, "Changes (%d):\n", report.Changed())
 	for _, f := range report.Files {
 		if !f.HasChanged() {
 			continue
 		}
 		switch f.Status {
 		case diff.StatusAdded:
-			fmt.Fprintf(out, "  + added    %s\n", f.RelPath)
+			writef(out, "  + added    %s\n", f.RelPath)
 		case diff.StatusRemoved:
-			fmt.Fprintf(out, "  - removed  %s\n", f.RelPath)
+			writef(out, "  - removed  %s\n", f.RelPath)
 		case diff.StatusModified:
-			fmt.Fprintf(out, "  ~ modified %s\n", f.RelPath)
+			writef(out, "  ~ modified %s\n", f.RelPath)
 			for _, d := range f.KeyDeltas {
 				switch d.Status {
 				case diff.StatusAdded:
-					fmt.Fprintf(out, "      + %s\n", d.Path)
+					writef(out, "      + %s\n", d.Path)
 				case diff.StatusRemoved:
-					fmt.Fprintf(out, "      - %s\n", d.Path)
+					writef(out, "      - %s\n", d.Path)
 				case diff.StatusModified:
-					fmt.Fprintf(out, "      ~ %s\n", d.Path)
+					writef(out, "      ~ %s\n", d.Path)
 				}
 			}
 		}

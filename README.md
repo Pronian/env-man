@@ -107,10 +107,20 @@ version: 1
 layers:          # applied overlay layers, lowest priority first (base implicit)
   - dev
   - local
+order:           # full display ordering of every known overlay layer
+  - dev          # (including disabled ones); persisted by the TUI so disabling
+  - staging      # a layer does not lose its position. `apply` overwrites this,
+  - local        # keeping non-applied layers where they were.
+  - prod
 materialized:    # files env-man wrote outside .env-man/; used by `drop`
   - .env
   - config/db.yml
 ```
+
+`order` is display metadata only — it does not affect merge priority (which
+comes from `layers`). It exists so the TUI can remember the position of layers
+you toggled off. When absent (e.g. a freshly initialized workspace), the TUI
+falls back to listing applied layers first, then the rest alphabetically.
 
 ## Layer names
 
@@ -135,7 +145,11 @@ It does not search parent directories.
 
 The list runs low → high priority top to bottom (base is locked at the top).
 Moving a layer down raises its priority (it's applied later, overriding more).
-The reordered priority is persisted to `state.yaml` on apply.
+The full ordering — including layers you toggle off — is persisted to `order` in
+`state.yaml` on apply, so disabling a layer never loses its place. Running
+`env-man apply` overwrites `order`: applied layers are re-sequenced into their
+CLI priority order within their existing slots, while layers `apply` doesn't
+touch keep their previous positions.
 
 ## Project layout
 

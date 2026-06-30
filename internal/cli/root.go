@@ -73,8 +73,8 @@ func runTUI(cmd *cobra.Command) error {
 	p, err := config.Require(flagCWD)
 	if err != nil {
 		if err == config.ErrNotConfigured {
-			fmt.Fprintln(out, "No env-man configuration in this folder.")
-			fmt.Fprintln(out, "Run `env-man init` to get started.")
+			writeln(out, "No env-man configuration in this folder.")
+			writeln(out, "Run `env-man init` to get started.")
 			return nil
 		}
 		return err
@@ -95,6 +95,10 @@ func runTUI(cmd *cobra.Command) error {
 	if !final.Applied() {
 		return nil
 	}
+
+	// Persist the full TUI ordering (enabled + disabled) so disabling a layer
+	// does not lose its position. The enabled subset drives the actual stack.
+	st.SetOrder(final.Order())
 
 	// The user confirmed: apply the selected layers.
 	plan, err := materialize.BuildPlan(p, final.Selected())

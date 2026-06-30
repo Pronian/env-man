@@ -31,10 +31,13 @@ type Model struct {
 	height  int
 }
 
-// NewModel builds the initial model. The display order is fixed for the
-// session: currently applied layers in their saved priority order first, then
-// any remaining available layers alphabetically. The base layer is implicit and
-// not shown as a togglable item.
+// NewModel builds the initial model. The display order is seeded from the
+// persisted full ordering in state (state.File.Order) so that disabled layers
+// keep their positions across sessions. For state files without a saved order
+// (e.g. freshly initialized workspaces) it falls back to the applied layers in
+// their saved priority order. In both cases any remaining available layers are
+// appended alphabetically. The base layer is implicit and not shown as a
+// togglable item.
 func NewModel(p config.Paths, st *state.File, all []string) Model {
 	existing := make(map[string]bool, len(all))
 	for _, l := range all {
@@ -45,10 +48,17 @@ func NewModel(p config.Paths, st *state.File, all []string) Model {
 		applied[l] = true
 	}
 
+	// Prefer the persisted full ordering (keeps disabled layers in place);
+	// fall back to the applied-layer order when no order is saved yet.
+	seed := st.Order
+	if len(seed) == 0 {
+		seed = st.Layers
+	}
+
 	var order []string
 	added := map[string]bool{}
-	for _, l := range st.Layers {
-		if l == config.BaseName || !existing[l] {
+	for _, l := range seed {
+		if l == config.BaseName || !existing[l] || added[l] {
 			continue
 		}
 		order = append(order, l)
@@ -187,6 +197,17 @@ func (m Model) Selected() []string {
 		}
 	}
 	return sel
+}
+
+// Order returns every item name in display (priority) order, including disabled
+// layers. This is the full ordering the TUI persists so disabling a layer does
+// not lose its position.
+func (m Model) Order() []string {
+	out := make([]string, len(m.items))
+	for i, it := range m.items {
+		out[i] = it.name
+	}
+	return out
 }
 
 // Cursor returns the current cursor index (useful for tests).

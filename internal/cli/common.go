@@ -24,16 +24,28 @@ func stackNames(stack []materialize.StackEntry) []string {
 	return names
 }
 
+// writef writes formatted output to w, ignoring write errors. The CLI emits
+// advisory text to stdout/stderr after the real work is done; a failed write
+// there is not worth aborting on.
+func writef(w io.Writer, format string, args ...any) {
+	_, _ = fmt.Fprintf(w, format, args...)
+}
+
+// writeln writes the given args as a single line to w, ignoring write errors.
+func writeln(w io.Writer, args ...any) {
+	_, _ = fmt.Fprintln(w, args...)
+}
+
 // printApplySummary writes a human-readable summary of an Apply result.
 func printApplySummary(out io.Writer, stack []materialize.StackEntry, res *materialize.Result) {
-	fmt.Fprintf(out, "Applied layers: %s\n", strings.Join(stackNames(stack), " -> "))
+	writef(out, "Applied layers: %s\n", strings.Join(stackNames(stack), " -> "))
 	section := func(label string, items []string) {
 		if len(items) == 0 {
 			return
 		}
-		fmt.Fprintf(out, "  %-9s %s\n", label+":", items[0])
+		writef(out, "  %-9s %s\n", label+":", items[0])
 		for _, x := range items[1:] {
-			fmt.Fprintf(out, "  %9s %s\n", "", x)
+			writef(out, "  %9s %s\n", "", x)
 		}
 	}
 	section("created", res.Created)
@@ -41,6 +53,6 @@ func printApplySummary(out io.Writer, stack []materialize.StackEntry, res *mater
 	section("removed", res.Removed)
 	section("unchanged", res.Unchanged)
 	if len(res.Created)+len(res.Updated)+len(res.Removed)+len(res.Unchanged) == 0 {
-		fmt.Fprintln(out, "  (no files)")
+		writeln(out, "  (no files)")
 	}
 }

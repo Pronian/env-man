@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 )
-
 func newApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apply [layer...]",
@@ -35,6 +34,9 @@ func runApply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// Overwrite the saved full ordering: the applied layers lead in their CLI
+	// priority order while non-applied layers keep their previous positions.
+	st.SetOrder(state.MergeOrder(st.Order, args))
 	plan, err := materialize.BuildPlan(p, args)
 	if err != nil {
 		return err
